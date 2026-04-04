@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Job {
+  id            String   @id @default(cuid())
+  sourceUrl     String
+  company       String?
+  role          String?
+  description   String?
+  salary        String?
+  location      String?
+  applyLink     String?
+  tags          String[] @default([])
+  internHackUrl String?
+  linkedinPost  String?
+  simpleSummary String?
+  imageUrl      String?
+  status        String   @default("draft") // draft, published, posted
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model TelegramSettings {
+  id        String   @id @default(cuid())
+  botToken  String
+  chatId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
