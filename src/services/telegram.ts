@@ -51,10 +51,20 @@ export async function sendTelegramPhoto(
     const mimeType = match[1];
     const buffer = Buffer.from(match[2], "base64");
 
+    // SVG is not supported on Telegram — fall back to text-only message.
+    if (mimeType === "image/svg+xml" || mimeType.includes("svg")) {
+      return sendTelegramMessage(caption);
+    }
+
     const isRasterPhoto =
       mimeType === "image/png" ||
       mimeType === "image/jpeg" ||
       mimeType === "image/webp";
+
+    if (!isRasterPhoto) {
+      // Unknown / unsupported format — skip image, send text only.
+      return sendTelegramMessage(caption);
+    }
 
     const ext = mimeType.split("/")[1] || "bin";
     const filename = `job-poster.${ext}`;
@@ -63,16 +73,14 @@ export async function sendTelegramPhoto(
     formData.append("chat_id", settings.chatId);
     formData.append("caption", caption);
     formData.append("parse_mode", "HTML");
-    // Telegram sendPhoto only supports PNG/JPEG/WebP. SVG must go as document.
     formData.append(
-      isRasterPhoto ? "photo" : "document",
+      "photo",
       new Blob([buffer], { type: mimeType }),
       filename
     );
 
-    const endpoint = isRasterPhoto ? "sendPhoto" : "sendDocument";
     const response = await fetch(
-      `https://api.telegram.org/bot${settings.botToken}/${endpoint}`,
+      `https://api.telegram.org/bot${settings.botToken}/sendPhoto`,
       { method: "POST", body: formData }
     );
 

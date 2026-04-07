@@ -40,7 +40,7 @@ export default async function RootLayout({
         ) : (
           <>
             <Sidebar />
-            <main className="flex-1 p-8 overflow-auto">{children}</main>
+            <main className="flex-1 min-w-0 p-4 md:p-8 overflow-auto">{children}</main>
           </>
         )}
         <Toaster richColors position="top-right" />

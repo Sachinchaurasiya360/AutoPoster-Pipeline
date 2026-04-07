@@ -13,19 +13,22 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Loader2, Link as LinkIcon, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Loader2, Link as LinkIcon, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { scrapeAndCreateJob, createJobFromText } from "@/actions/jobs";
 
+type Mode = "url" | "description";
+
 export function JobUrlForm() {
+  const [mode, setMode] = useState<Mode>("url");
   const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [manualText, setManualText] = useState("");
-  const [manualLoading, setManualLoading] = useState(false);
+  const [manualUrl, setManualUrl] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleUrlSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     if (!url.trim()) {
@@ -41,36 +44,41 @@ export function JobUrlForm() {
     }
 
     setLoading(true);
-    setScrapeError(null);
     try {
       const job = await scrapeAndCreateJob(url.trim());
       toast.success("Job scraped successfully!");
       router.push(`/jobs/${job.id}`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to scrape job";
-      toast.error(msg);
-      setScrapeError(msg);
+      toast.error(
+        `${msg}. Try pasting the job description instead.`
+      );
+      // Auto-switch to description mode so the user can recover easily.
+      setMode("description");
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleManualSubmit(e: React.FormEvent) {
+  async function handleDescriptionSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!manualText.trim()) {
       toast.error("Please paste the job description");
       return;
     }
 
-    setManualLoading(true);
+    setLoading(true);
     try {
-      const job = await createJobFromText(manualText.trim(), url.trim() || undefined);
+      const job = await createJobFromText(
+        manualText.trim(),
+        manualUrl.trim() || undefined
+      );
       toast.success("Job created from description!");
       router.push(`/jobs/${job.id}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create job");
     } finally {
-      setManualLoading(false);
+      setLoading(false);
     }
   }
 
@@ -79,83 +87,119 @@ export function JobUrlForm() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <LinkIcon className="h-5 w-5" />
-          Add Job URL
+          Add Job
         </CardTitle>
         <CardDescription>
-          Paste a job URL from LinkedIn, Internshala, Wellfound, Naukri, YC Jobs, or any company careers page.
+          Scrape a job URL automatically, or paste the job description directly
+          (useful for sites we can&apos;t scrape like Unstop).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="url">Job URL</Label>
-            <Input
-              id="url"
-              type="url"
-              placeholder="https://www.linkedin.com/jobs/view/..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={loading}
-            />
-          </div>
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Scraping job details...
-              </>
-            ) : (
-              "Scrape & Extract"
+        {/* Mode toggle */}
+        <div
+          role="tablist"
+          aria-label="Input mode"
+          className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "url"}
+            onClick={() => setMode("url")}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              mode === "url"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             )}
-          </Button>
-        </form>
+          >
+            <LinkIcon className="h-4 w-4" />
+            Job URL
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "description"}
+            onClick={() => setMode("description")}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              mode === "description"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <FileText className="h-4 w-4" />
+            Job Description
+          </button>
+        </div>
 
-        {scrapeError && (
-          <div className="space-y-3 rounded-lg border border-amber-300/40 bg-amber-50/50 p-4 dark:border-amber-500/30 dark:bg-amber-950/20">
-            <div className="flex items-start gap-2 text-sm">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-              <div>
-                <p className="font-medium text-amber-900 dark:text-amber-200">
-                  Couldn&apos;t scrape that URL
-                </p>
-                <p className="text-amber-800/80 dark:text-amber-300/80">
-                  {scrapeError}
-                </p>
-                <p className="mt-1 text-amber-800/80 dark:text-amber-300/80">
-                  Paste the job description below and we&apos;ll extract the
-                  details with AI instead.
-                </p>
-              </div>
+        {mode === "url" ? (
+          <form onSubmit={handleUrlSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="url">Job URL</Label>
+              <Input
+                id="url"
+                type="url"
+                placeholder="https://www.linkedin.com/jobs/view/..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Works with LinkedIn, Internshala, Wellfound, Naukri, YC Jobs,
+                and most careers pages. For Unstop, use the Description tab.
+              </p>
             </div>
-
-            <form onSubmit={handleManualSubmit} className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="manualText">Job Description</Label>
-                <Textarea
-                  id="manualText"
-                  rows={10}
-                  placeholder="Paste the full job description here — company, role, responsibilities, requirements, salary, location, apply link, etc."
-                  value={manualText}
-                  onChange={(e) => setManualText(e.target.value)}
-                  disabled={manualLoading}
-                />
-              </div>
-              <Button
-                type="submit"
-                disabled={manualLoading}
-                className="w-full"
-              >
-                {manualLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Extracting from description...
-                  </>
-                ) : (
-                  "Extract from Description"
-                )}
-              </Button>
-            </form>
-          </div>
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Scraping job details...
+                </>
+              ) : (
+                "Scrape & Extract"
+              )}
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={handleDescriptionSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="manualUrl">Source URL (optional)</Label>
+              <Input
+                id="manualUrl"
+                type="url"
+                placeholder="https://unstop.com/jobs/..."
+                value={manualUrl}
+                onChange={(e) => setManualUrl(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="manualText">Job Description</Label>
+              <Textarea
+                id="manualText"
+                rows={12}
+                placeholder="Paste the full job description here — company, role, responsibilities, requirements, salary, location, apply link, etc."
+                value={manualText}
+                onChange={(e) => setManualText(e.target.value)}
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                AI will extract company, role, salary, location, tags, and apply
+                link from whatever you paste.
+              </p>
+            </div>
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Extracting from description...
+                </>
+              ) : (
+                "Extract from Description"
+              )}
+            </Button>
+          </form>
         )}
       </CardContent>
     </Card>

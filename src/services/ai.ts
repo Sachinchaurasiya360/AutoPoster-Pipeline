@@ -1,6 +1,7 @@
 "use server";
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Resvg } from "@resvg/resvg-js";
 import type { JobData } from "@/types/job";
 
 const WHATSAPP_COMMUNITY = "https://chat.whatsapp.com/KiemP3l6QFKHadtfGehpF1";
@@ -125,6 +126,12 @@ Return ONLY the raw SVG code starting with <svg and ending with </svg>. No markd
     if (svgStart !== -1) svgText = svgText.slice(svgStart);
   }
 
-  const base64 = Buffer.from(svgText).toString("base64");
-  return `data:image/svg+xml;base64,${base64}`;
+  // LinkedIn does not support SVG in posts — rasterize to PNG.
+  const resvg = new Resvg(svgText, {
+    fitTo: { mode: "width", value: 1200 },
+    font: { loadSystemFonts: true },
+  });
+  const pngBuffer = resvg.render().asPng();
+  const base64 = Buffer.from(pngBuffer).toString("base64");
+  return `data:image/png;base64,${base64}`;
 }
