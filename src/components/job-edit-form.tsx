@@ -69,11 +69,34 @@ export function JobEditForm({ job }: JobEditFormProps) {
   async function handlePublish() {
     setPublishing(true);
     try {
-      const updated = await publishJob(job.id);
-      toast.success("Published to InternHack!");
-      if (updated.internHackUrl) {
-        toast.info(`InternHack URL: ${updated.internHackUrl}`);
-      }
+      const { publishResult } = await publishJob(job.id);
+      const expires = publishResult.expiresAt
+        ? new Date(publishResult.expiresAt).toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
+        : null;
+
+      toast.success("Published to InternHack 🎉", {
+        description: (
+          <div className="space-y-1 text-xs">
+            <div>
+              <span className="font-medium">Slug:</span> {publishResult.slug}
+            </div>
+            {expires && (
+              <div>
+                <span className="font-medium">Expires:</span> {expires}
+              </div>
+            )}
+          </div>
+        ),
+        action: {
+          label: "Open",
+          onClick: () => window.open(publishResult.url, "_blank"),
+        },
+        duration: 8000,
+      });
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to publish");

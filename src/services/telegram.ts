@@ -1,20 +1,19 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-
-async function getTelegramSettings() {
-  const settings = await prisma.telegramSettings.findFirst({
-    orderBy: { createdAt: "desc" },
-  });
-  if (!settings) {
-    throw new Error("Telegram settings not configured. Go to Settings to set up your bot.");
+function getTelegramSettings() {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!botToken || !chatId) {
+    throw new Error(
+      "Telegram is not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in your .env file."
+    );
   }
-  return settings;
+  return { botToken, chatId };
 }
 
 // Send a text message to Telegram
 export async function sendTelegramMessage(text: string): Promise<boolean> {
-  const settings = await getTelegramSettings();
+  const settings = getTelegramSettings();
 
   const response = await fetch(
     `https://api.telegram.org/bot${settings.botToken}/sendMessage`,
@@ -43,30 +42,38 @@ export async function sendTelegramPhoto(
   imageUrl: string,
   caption: string
 ): Promise<boolean> {
-  const settings = await getTelegramSettings();
+  const settings = getTelegramSettings();
 
-  // If it's a data URL (SVG), we need to send as document or convert
+  // Data URL: parse mime + bytes and upload via multipart
   if (imageUrl.startsWith("data:")) {
-    // Extract base64 data and send as document
-    const base64Data = imageUrl.split(",")[1];
-    const buffer = Buffer.from(base64Data, "base64");
+    const match = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) throw new Error("Invalid data URL for Telegram photo");
+    const mimeType = match[1];
+    const buffer = Buffer.from(match[2], "base64");
+
+    const isRasterPhoto =
+      mimeType === "image/png" ||
+      mimeType === "image/jpeg" ||
+      mimeType === "image/webp";
+
+    const ext = mimeType.split("/")[1] || "bin";
+    const filename = `job-poster.${ext}`;
 
     const formData = new FormData();
     formData.append("chat_id", settings.chatId);
     formData.append("caption", caption);
     formData.append("parse_mode", "HTML");
+    // Telegram sendPhoto only supports PNG/JPEG/WebP. SVG must go as document.
     formData.append(
-      "document",
-      new Blob([buffer], { type: "image/svg+xml" }),
-      "job-poster.svg"
+      isRasterPhoto ? "photo" : "document",
+      new Blob([buffer], { type: mimeType }),
+      filename
     );
 
+    const endpoint = isRasterPhoto ? "sendPhoto" : "sendDocument";
     const response = await fetch(
-      `https://api.telegram.org/bot${settings.botToken}/sendDocument`,
-      {
-        method: "POST",
-        body: formData,
-      }
+      `https://api.telegram.org/bot${settings.botToken}/${endpoint}`,
+      { method: "POST", body: formData }
     );
 
     if (!response.ok) {

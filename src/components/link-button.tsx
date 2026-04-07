@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import type { VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 

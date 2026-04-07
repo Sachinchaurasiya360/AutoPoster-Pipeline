@@ -29,6 +29,28 @@ export async function scrapeAndCreateJob(url: string) {
   return job;
 }
 
+// Manual fallback: create a job from a raw pasted description (no scraping)
+export async function createJobFromText(rawText: string, sourceUrl?: string) {
+  const url = sourceUrl?.trim() || "manual";
+  const jobData = await extractJobData(rawText, url);
+
+  const job = await prisma.job.create({
+    data: {
+      sourceUrl: url,
+      company: jobData.company,
+      role: jobData.role,
+      description: jobData.description,
+      salary: jobData.salary,
+      location: jobData.location,
+      applyLink: jobData.applyLink,
+      tags: jobData.tags || [],
+      status: "draft",
+    },
+  });
+
+  return job;
+}
+
 // Update a job with edited form data
 export async function updateJob(id: string, data: JobFormData) {
   const job = await prisma.job.update({
@@ -51,7 +73,7 @@ export async function updateJob(id: string, data: JobFormData) {
 export async function publishJob(id: string) {
   const job = await prisma.job.findUniqueOrThrow({ where: { id } });
 
-  const internHackUrl = await publishToInternHack({
+  const result = await publishToInternHack({
     company: job.company,
     role: job.role,
     description: job.description,
@@ -64,12 +86,12 @@ export async function publishJob(id: string) {
   const updatedJob = await prisma.job.update({
     where: { id },
     data: {
-      internHackUrl,
+      internHackUrl: result.url,
       status: "published",
     },
   });
 
-  return updatedJob;
+  return { job: updatedJob, publishResult: result };
 }
 
 // Generate all content (summary, LinkedIn post, image)

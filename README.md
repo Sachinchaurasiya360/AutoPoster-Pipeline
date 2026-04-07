@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AutoPoster Pipeline
 
-## Getting Started
+Internal tool to scrape job listings, generate AI content, publish to InternHack, and post to LinkedIn & Telegram.
 
-First, run the development server:
+## Tech Stack
+
+- **Next.js 16** (App Router, Server Actions)
+- **TypeScript**
+- **PostgreSQL** + **Prisma 7**
+- **Tailwind CSS** + **Shadcn UI**
+- **Gemini API** (AI extraction, content generation, SVG poster)
+- **Playwright** + **Cheerio** (web scraping)
+- **Telegram Bot API**
+
+## Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Install Playwright browsers (for scraping JS-heavy sites)
+
+```bash
+npx playwright install chromium
+```
+
+### 3. Set up PostgreSQL
+
+Make sure you have PostgreSQL running locally. Create a database:
+
+```sql
+CREATE DATABASE autoposter;
+```
+
+### 4. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your values:
+
+- `DATABASE_URL` - PostgreSQL connection string
+- `GEMINI_API_KEY` - Get from [Google AI Studio](https://aistudio.google.com/apikey)
+
+### 5. Run database migrations
+
+```bash
+npx prisma migrate dev --name init
+```
+
+### 6. Start the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How It Works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Add Job URL** - Paste any job listing URL (LinkedIn, Internshala, Wellfound, Naukri, YC, company career pages)
+2. **Auto-scrape** - The app detects static vs dynamic pages and extracts content using Cheerio or Playwright
+3. **AI Extraction** - Gemini structures the raw text into company, role, salary, location, tags, etc.
+4. **Review & Edit** - Edit all fields, add/remove tags, preview the JSON payload
+5. **Publish to InternHack** - Send structured data to InternHack API, get back the InternHack URL
+6. **Generate Content** - AI generates a simplified summary, LinkedIn post with InternHack CTA, and an SVG poster
+7. **Post to Telegram** - Send the generated content to your Telegram channel via bot API
 
-## Learn More
+## Pages
 
-To learn more about Next.js, take a look at the following resources:
+| Route | Description |
+|-------|-------------|
+| `/` | Dashboard with stats and recent jobs |
+| `/jobs/new` | Add a new job URL |
+| `/jobs/[id]` | Review and edit scraped job data |
+| `/jobs/[id]/content` | Generated content (summary, LinkedIn post, poster) |
+| `/settings` | Configure Telegram bot token and channel |
+| `/history` | All processed jobs |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+  app/            # Next.js App Router pages
+  components/     # React components (forms, cards, sidebar)
+  actions/        # Server actions (jobs, telegram)
+  services/       # Business logic (scraper, AI, InternHack, Telegram)
+  types/          # Zod schemas and TypeScript types
+  lib/            # Prisma client, utilities
+  generated/      # Prisma generated client (gitignored)
+prisma/
+  schema.prisma   # Database schema
+```
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Vercel** - Works out of the box (set env vars in Vercel dashboard). Note: Playwright requires a custom Vercel function setup or external scraping service for production.
+- **Railway / Render** - Deploy with Docker, include Playwright in the Dockerfile.
+- **Self-hosted** - Run with `npm run build && npm start` behind Nginx/Caddy.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For production, consider replacing Playwright scraping with a cloud-based scraping API to avoid browser binary issues.

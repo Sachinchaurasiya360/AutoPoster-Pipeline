@@ -12,6 +12,10 @@ function needsJsRendering(url: string): boolean {
     "greenhouse.io",
     "workday.com",
     "myworkdayjobs.com",
+    "docs.google.com",
+    "forms.gle",
+    "notion.site",
+    "notion.so",
   ];
   return jsHeavySites.some((site) => url.includes(site));
 }

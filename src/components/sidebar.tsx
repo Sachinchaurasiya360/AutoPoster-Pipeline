@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   PlusCircle,
   History,
-  Settings,
   Zap,
 } from "lucide-react";
 
@@ -15,7 +14,6 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/jobs/new", label: "Add Job", icon: PlusCircle },
   { href: "/history", label: "History", icon: History },
-  { href: "/settings", label: "Telegram Settings", icon: Settings },
 ];
 
 export function Sidebar() {
