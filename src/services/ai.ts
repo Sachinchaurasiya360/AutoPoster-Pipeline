@@ -1,23 +1,40 @@
 "use server";
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Resvg } from "@resvg/resvg-js";
 import type { JobData } from "@/types/job";
 
 const WHATSAPP_COMMUNITY = "https://chat.whatsapp.com/KiemP3l6QFKHadtfGehpF1";
 const TELEGRAM_CHANNEL = "https://t.me/internhack";
 
-function getGeminiClient() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
-  return new GoogleGenerativeAI(apiKey);
+const OPENROUTER_MODEL = "google/gemini-2.5-flash";
+
+async function openRouterChat(prompt: string): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
+
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`OpenRouter error ${res.status}: ${body}`);
+  }
+
+  const data = await res.json();
+  return data.choices[0].message.content.trim();
 }
 
 // Extract structured job data from raw scraped text
 export async function extractJobData(rawText: string, sourceUrl: string): Promise<JobData> {
-  const genAI = getGeminiClient();
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
   const prompt = `You are a job data extraction assistant. Extract structured job information from the following scraped webpage text.
 
 Source URL: ${sourceUrl}
@@ -36,8 +53,7 @@ Return a JSON object with exactly these fields:
 
 Return ONLY valid JSON, no markdown formatting, no code blocks.`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
+  const text = await openRouterChat(prompt);
 
   // Clean potential markdown code blocks
   const cleaned = text.replace(/```json?\n?/g, "").replace(/```\n?/g, "").trim();
@@ -90,11 +106,8 @@ export async function generateLinkedInPost(
   return generateSimpleSummary(job, internHackUrl);
 }
 
-// Generate a job poster as an SVG via Gemini text model
+// Generate a job poster as an SVG via AI text model
 export async function generateJobPoster(job: JobData): Promise<string> {
-  const genAI = getGeminiClient();
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
   const prompt = `Create an SVG image (1200x628 pixels, LinkedIn post dimensions) for a job posting poster.
 
 Design requirements:
@@ -116,8 +129,7 @@ Add subtle gradient backgrounds, rounded rectangles, and clean spacing.
 
 Return ONLY the raw SVG code starting with <svg and ending with </svg>. No markdown, no explanation.`;
 
-  const result = await model.generateContent(prompt);
-  let svgText = result.response.text().trim();
+  let svgText = await openRouterChat(prompt);
 
   svgText = svgText.replace(/```svg?\n?/g, "").replace(/```\n?/g, "").trim();
 
