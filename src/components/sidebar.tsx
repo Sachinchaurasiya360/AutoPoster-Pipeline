@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   PlusCircle,
-  History,
   Zap,
   Menu,
   X,
@@ -16,7 +15,6 @@ import {
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/jobs/new", label: "Add Job", icon: PlusCircle },
-  { href: "/history", label: "History", icon: History },
 ];
 
 export function Sidebar() {
