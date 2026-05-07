@@ -16,7 +16,7 @@ async function openRouterChat(prompt: string): Promise<string> {
     },
     body: JSON.stringify({
       model: OPENROUTER_MODEL,
-      max_tokens: 4096,
+      max_tokens: 1024,
       messages: [{ role: "user", content: prompt }],
     }),
   });
